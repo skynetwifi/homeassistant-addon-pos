@@ -193,6 +193,32 @@ async function ensureTables() {
       }
     }
     
+    // Migrations: Add change_type to inventory_history if missing
+    try {
+      await connection.query('SELECT change_type FROM inventory_history LIMIT 1');
+    } catch (e) {
+      if (e.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[POS] Migrating inventory_history table: adding change_type');
+        await connection.query("ALTER TABLE inventory_history ADD COLUMN change_type VARCHAR(50) NOT NULL DEFAULT 'manual' AFTER product_id");
+      }
+    }
+
+    // Migrations: Ensure products table has all columns
+    const productColumns = ['cost_price', 'profit_margin', 'min_quantity', 'category'];
+    for (const col of productColumns) {
+      try {
+        await connection.query(`SELECT ${col} FROM products LIMIT 1`);
+      } catch (e) {
+        if (e.code === 'ER_BAD_FIELD_ERROR') {
+          console.log(`[POS] Migrating products table: adding ${col}`);
+          let type = 'DECIMAL(10,2) DEFAULT 0';
+          if (col === 'min_quantity') type = 'INT DEFAULT 10';
+          if (col === 'category') type = "VARCHAR(100) DEFAULT 'General'";
+          await connection.query(`ALTER TABLE products ADD COLUMN ${col} ${type}`);
+        }
+      }
+    }
+    
     console.log('[POS] Database tables verified');
     connection.release();
   } catch (err) {
