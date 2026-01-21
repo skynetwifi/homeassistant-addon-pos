@@ -29,6 +29,30 @@ console.log(`  Port: ${process.env.DB_PORT || 3306}`);
 console.log(`  Database: ${process.env.DB_NAME || 'pos_db'}`);
 console.log(`  Ingress Path: ${INGRESS_PATH}`);
 
+// Ensure database tables exist
+async function ensureTables() {
+  try {
+    const connection = await pool.getConnection();
+    
+    // Sessions table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token VARCHAR(128) PRIMARY KEY,
+        user_id INT NOT NULL,
+        data JSON,
+        expires_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_expires (expires_at)
+      )
+    `);
+    
+    console.log('[POS] Database tables verified');
+    connection.release();
+  } catch (err) {
+    console.error('[POS] ensureTables error:', err);
+  }
+}
+
 // Ensure admin user exists on startup
 async function ensureAdminUser() {
   try {
@@ -76,9 +100,6 @@ async function ensureAdminUser() {
   }
 }
 
-// Session Store
-const sessions = new Map();
-
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
@@ -87,13 +108,30 @@ function generateToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  if (!token || !sessions.has(token)) {
+  if (!token) {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
-  req.user = sessions.get(token);
-  next();
+  
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query(
+      'SELECT * FROM sessions WHERE token = ? AND (expires_at IS NULL OR expires_at > NOW())',
+      [token]
+    );
+    connection.release();
+    
+    if (rows.length === 0) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized / Session Expired' });
+    }
+    
+    req.user = rows[0].data;
+    next();
+  } catch (err) {
+    console.error('Auth Error:', err);
+    return res.status(500).json({ status: 'error', message: 'Server error check auth' });
+  }
 }
 
 function requireAdmin(req, res, next) {
@@ -131,12 +169,19 @@ app.post('/api/login', async (req, res) => {
     }
 
     const token = generateToken();
-    sessions.set(token, {
+    const userData = {
       id: user.id,
       username: user.username,
       display_name: user.display_name,
       role: user.role
-    });
+    };
+
+    const db = await pool.getConnection();
+    await db.query(
+      'INSERT INTO sessions (token, user_id, data, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))',
+      [token, user.id, JSON.stringify(userData)]
+    );
+    db.release();
 
     res.json({
       status: 'success',
@@ -151,10 +196,17 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.post('/api/logout', requireAuth, (req, res) => {
+app.post('/api/logout', requireAuth, async (req, res) => {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  sessions.delete(token);
-  res.json({ status: 'success', message: 'Logged out' });
+  try {
+    const connection = await pool.getConnection();
+    await connection.query('DELETE FROM sessions WHERE token = ?', [token]);
+    connection.release();
+    res.json({ status: 'success', message: 'Logged out' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    res.status(500).json({ status: 'error', message: 'Server error' });
+  }
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
@@ -470,6 +522,7 @@ app.get('*', (req, res) => {
 });
 
 async function init() {
+  await ensureTables();
   await ensureAdminUser();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[POS] Server running on http://0.0.0.0:${PORT}`);
