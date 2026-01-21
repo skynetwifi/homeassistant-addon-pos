@@ -117,6 +117,33 @@
         </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content" style="max-width: 400px; padding: 25px;">
+            <h3 style="margin-bottom: 20px;">💰 ชำระเงิน</h3>
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #28a745;">
+                ยอดรวม: <span id="paymentTotal">฿0.00</span>
+            </div>
+            
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">รับเงินมา (บาท)</label>
+                <input type="number" id="receivedAmount" style="width: 100%; padding: 12px; font-size: 18px; border: 2px solid #ddd; border-radius: 8px;" placeholder="0.00" oninput="calculateChange()">
+            </div>
+            
+            <div style="margin-bottom: 25px; text-align: left; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; font-size: 18px;">
+                    <span>เงินทอน:</span>
+                    <span id="changeAmount" style="font-weight: bold; color: #333;">฿0.00</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="confirmPayment()" id="confirmPaymentBtn" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold;" disabled>ยืนยัน</button>
+                <button onclick="closePaymentModal()" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Success Modal -->
     <div class="modal" id="successModal">
         <div class="modal-content">
@@ -249,46 +276,104 @@
 
         function clearCart() {
             if (cart.length > 0 && confirm('ล้างตะกร้าทั้งหมด?')) {
-                cart = [];
-                renderCart();
+                resetCart();
             }
         }
 
-        async function checkout() {
-            if (cart.length === 0) return;
+        function resetCart() {
+            cart = [];
+            renderCart();
+        }
 
+        function checkout() {
+            if (cart.length === 0) return;
+            const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+            
+            document.getElementById('paymentTotal').textContent = `฿${total.toFixed(2)}`;
+            document.getElementById('receivedAmount').value = '';
+            document.getElementById('changeAmount').textContent = '฿0.00';
+            document.getElementById('confirmPaymentBtn').disabled = true;
+            document.getElementById('paymentModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('receivedAmount').focus(), 100);
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+        }
+
+        function calculateChange() {
+            const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+            const received = parseFloat(document.getElementById('receivedAmount').value) || 0;
+            const change = received - total;
+            
+            const changeEl = document.getElementById('changeAmount');
+            const btn = document.getElementById('confirmPaymentBtn');
+
+            if (received >= total) {
+                changeEl.textContent = `฿${change.toFixed(2)}`;
+                changeEl.style.color = '#28a745';
+                btn.disabled = false;
+            } else {
+                changeEl.textContent = `ขาด ฿${Math.abs(change).toFixed(2)}`;
+                changeEl.style.color = '#dc3545';
+                btn.disabled = true;
+            }
+        }
+
+        async function confirmPayment() {
             const items = cart.map(c => ({ product_id: c.id, quantity: c.qty, price: c.price }));
             const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+            const received = parseFloat(document.getElementById('receivedAmount').value);
+            const change = received - total;
 
             const result = await fetchAPI('/sales', {
                 method: 'POST',
-                body: JSON.stringify({ items, total_amount: total })
+                body: JSON.stringify({ items, total_amount: total, received_amount: received, change_amount: change })
             });
 
             if (result.status === 'success') {
-                showReceipt(result.data);
-                cart = [];
-                renderCart();
+                closePaymentModal();
+                showReceipt(result.data, items, received, change);
+                resetCart();
                 loadProducts();
             } else {
                 alert(result.message);
             }
         }
 
-        function showReceipt(sale) {
+        function showReceipt(saleInfo, items, received, change) {
             const now = new Date();
+            // saleInfo contains { sale_id, total_amount } from API
+            // items is our local cart items
+            
             document.getElementById('receipt').innerHTML = `
                 <div class="receipt-header">
                     <strong>POS System</strong><br>
                     ${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}
                 </div>
-                <div>เลขที่: #${sale.id}</div>
+                <div>เลขที่: #${saleInfo.sale_id}</div>
                 <div>พนักงาน: ${user.display_name || user.username}</div>
                 <div style="border-top: 1px dashed #999; margin: 10px 0; padding-top: 10px;">
-                    ${sale.items.map(i => `<div>${i.name} x${i.quantity} = ฿${(i.price * i.quantity).toFixed(2)}</div>`).join('')}
+                    ${items.map(i => `
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>${i.name} x${i.qty}</span>
+                            <span>฿${(i.price * i.qty).toFixed(2)}</span>
+                        </div>
+                    `).join('')}
                 </div>
-                <div style="border-top: 1px dashed #999; padding-top: 10px; font-weight: bold;">
-                    รวมทั้งสิ้น: ฿${parseFloat(sale.total).toFixed(2)}
+                <div style="border-top: 1px dashed #999; padding-top: 10px; margin-top: 10px;">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span>รวมทั้งสิ้น</span>
+                        <span>฿${parseFloat(saleInfo.total_amount).toFixed(2)}</span>
+                    </div>
+                     <div style="display:flex; justify-content:space-between;">
+                        <span>รับเงิน</span>
+                        <span>฿${received.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; color: #28a745;">
+                        <span>เงินทอน</span>
+                        <span>฿${change.toFixed(2)}</span>
+                    </div>
                 </div>
             `;
             document.getElementById('successModal').style.display = 'flex';

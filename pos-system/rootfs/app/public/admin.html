@@ -552,6 +552,9 @@
 
         loadDashboard();
         loadProducts();
+
+        // Refresh dashboard statistics every 10 seconds
+        setInterval(loadDashboard, 10000);
     </script>
 </body>
 </html>
