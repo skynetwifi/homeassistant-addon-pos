@@ -164,6 +164,24 @@ async function ensureTables() {
       }
     }
 
+    // Migrations: Cleanup total_price from sale_items (legacy column causing errors)
+    try {
+      await connection.query('SELECT total_price FROM sale_items LIMIT 1');
+      console.log('[POS] Migrating sale_items table: dropping legacy total_price');
+      await connection.query('ALTER TABLE sale_items DROP COLUMN total_price');
+    } catch (e) {
+      // Ignore if column doesn't exist
+    }
+
+    // Migrations: Cleanup total_price from sales (legacy column causing errors)
+    try {
+      await connection.query('SELECT total_price FROM sales LIMIT 1');
+      console.log('[POS] Migrating sales table: dropping legacy total_price');
+      await connection.query('ALTER TABLE sales DROP COLUMN total_price');
+    } catch (e) {
+      // Ignore if column doesn't exist
+    }
+
 
     // Migrations: Add user_id to inventory_history if missing
     try {
