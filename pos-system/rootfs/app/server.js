@@ -32,8 +32,22 @@ console.log(`  Ingress Path: ${INGRESS_PATH}`);
 // Ensure admin user exists on startup
 async function ensureAdminUser() {
   try {
-    const adminUser = process.env.ADMIN_USER || 'admin';
-    const adminPass = process.env.ADMIN_PASSWORD || 'admin123';
+    const fs = require('fs');
+
+    function readOption(key, fallback) {
+      if (process.env[key.toUpperCase()]) return process.env[key.toUpperCase()];
+      try {
+        const raw = fs.readFileSync('/data/options.json', 'utf8');
+        const opts = JSON.parse(raw || '{}');
+        if (opts && typeof opts[key] !== 'undefined') return opts[key];
+      } catch (e) {
+        // ignore
+      }
+      return fallback;
+    }
+
+    const adminUser = readOption('admin_user', 'admin');
+    const adminPass = readOption('admin_password', 'admin123');
 
     const connection = await pool.getConnection();
     const [rows] = await connection.query('SELECT * FROM users WHERE username = ?', [adminUser]);
