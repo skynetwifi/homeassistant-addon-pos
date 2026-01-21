@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashier - POS System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
+        .navbar { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 12px 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h1 { font-size: 18px; }
+        .navbar-actions button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 14px; border-radius: 5px; cursor: pointer; margin-left: 8px; font-size: 13px; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .left-panel { flex: 1; padding: 15px; overflow-y: auto; background: #fff; }
+        .right-panel { width: 380px; background: #f8f9fa; border-left: 1px solid #ddd; display: flex; flex-direction: column; }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-bar input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .search-bar button { padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .product-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-color: #28a745; }
+        .product-card .name { font-weight: 600; margin-bottom: 5px; font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .product-card .price { color: #28a745; font-size: 18px; font-weight: bold; }
+        .product-card .stock { color: #999; font-size: 11px; margin-top: 5px; }
+        .cart-header { padding: 15px; background: #28a745; color: white; }
+        .cart-header h2 { font-size: 16px; }
+        .cart-items { flex: 1; overflow-y: auto; padding: 10px; }
+        .cart-item { display: flex; align-items: center; padding: 10px; background: white; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .cart-item-info { flex: 1; }
+        .cart-item-name { font-weight: 600; font-size: 13px; }
+        .cart-item-price { color: #666; font-size: 12px; }
+        .cart-item-qty { display: flex; align-items: center; gap: 8px; }
+        .cart-item-qty button { width: 28px; height: 28px; border: none; border-radius: 50%; cursor: pointer; font-size: 16px; }
+        .cart-item-qty .minus { background: #ffc107; }
+        .cart-item-qty .plus { background: #28a745; color: white; }
+        .cart-item-qty span { min-width: 25px; text-align: center; font-weight: bold; }
+        .cart-item-total { min-width: 70px; text-align: right; font-weight: bold; color: #28a745; }
+        .cart-item-remove { margin-left: 10px; color: #dc3545; cursor: pointer; font-size: 18px; }
+        .cart-summary { padding: 15px; background: white; border-top: 1px solid #ddd; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .summary-total { font-size: 22px; font-weight: bold; color: #28a745; border-top: 2px solid #ddd; padding-top: 10px; margin-top: 10px; }
+        .btn-checkout { width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-checkout:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-clear { width: 100%; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 450px; text-align: center; }
+        .success-icon { font-size: 60px; margin-bottom: 15px; }
+        .receipt { text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; font-family: monospace; font-size: 12px; }
+        .receipt-header { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 10px; margin-bottom: 10px; }
+        .empty-cart { text-align: center; padding: 50px 20px; color: #999; }
+        .empty-cart .icon { font-size: 50px; margin-bottom: 10px; }
+        #scanner-container { width: 100%; background: #000; position: relative; }
+        #scanner-container video { width: 100%; }
+        .scanner-line { position: absolute; top: 50%; left: 5%; width: 90%; height: 2px; background: red; animation: scan 2s infinite; }
+        @keyframes scan { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>💵 POS Cashier</h1>
+        <div class="navbar-actions">
+            <span id="userName"></span>
+            <button onclick="window.location.href='admin.html'" id="adminBtn" style="display:none;">⚙️ Admin</button>
+            <button onclick="logout()">🚪 ออก</button>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="🔍 ค้นหาสินค้า หรือ สแกนบาร์โค้ด...">
+                <button onclick="startScanner()">📷 สแกน</button>
+            </div>
+            <div class="products-grid" id="productsGrid"></div>
+        </div>
+
+        <div class="right-panel">
+            <div class="cart-header">
+                <h2>🛒 ตะกร้าสินค้า</h2>
+            </div>
+            <div class="cart-items" id="cartItems">
+                <div class="empty-cart">
+                    <div class="icon">🛒</div>
+                    <p>ยังไม่มีสินค้าในตะกร้า</p>
+                </div>
+            </div>
+            <div class="cart-summary">
+                <div class="summary-row">
+                    <span>จำนวนรายการ:</span>
+                    <span id="totalItems">0</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>ยอดรวม:</span>
+                    <span id="totalAmount">฿0.00</span>
+                </div>
+                <button class="btn-checkout" id="checkoutBtn" disabled onclick="checkout()">💳 ชำระเงิน</button>
+                <button class="btn-clear" onclick="clearCart()">🗑️ ล้างตะกร้า</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Modal -->
+    <div class="modal" id="scannerModal">
+        <div class="modal-content" style="max-width: 400px; padding: 20px;">
+            <h3 style="margin-bottom: 15px;">📷 สแกนบาร์โค้ด</h3>
+            <div id="scanner-container">
+                <div class="scanner-line"></div>
+            </div>
+            <div style="margin-top: 15px;">
+                <input type="text" id="manualBarcode" placeholder="หรือพิมพ์บาร์โค้ด..." style="width: 100%; padding: 10px; margin-bottom: 10px;">
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="useManualBarcode()" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">ใช้บาร์โค้ด</button>
+                    <button onclick="stopScanner()" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content">
+            <div class="success-icon">✅</div>
+            <h2>ชำระเงินสำเร็จ!</h2>
+            <div class="receipt" id="receipt"></div>
+            <button onclick="closeSuccessModal()" style="padding: 12px 30px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">เสร็จสิ้น</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.pathname.replace(/\/[^\/]*$/, '') + '/api';
+        const token = localStorage.getItem('pos_token');
+        let products = [];
+        let cart = [];
+
+        if (!token) window.location.href = 'index.html';
+
+        const user = JSON.parse(localStorage.getItem('pos_user') || '{}');
+        document.getElementById('userName').textContent = `👤 ${user.display_name || user.username}`;
+        if (user.role === 'admin') document.getElementById('adminBtn').style.display = 'inline-block';
+
+        async function fetchAPI(endpoint, options = {}) {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...options.headers }
+            });
+            return response.json();
+        }
+
+        async function loadProducts() {
+            const result = await fetchAPI('/products');
+            if (result.status === 'success') {
+                products = result.data.filter(p => p.stock > 0);
+                renderProducts(products);
+            }
+        }
+
+        function renderProducts(list) {
+            document.getElementById('productsGrid').innerHTML = list.map(p => `
+                <div class="product-card" onclick="addToCart(${p.id})">
+                    <div class="name" title="${p.name}">${p.name}</div>
+                    <div class="price">฿${parseFloat(p.price).toFixed(2)}</div>
+                    <div class="stock">คงเหลือ: ${p.stock}</div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = products.filter(p => 
+                p.name.toLowerCase().includes(term) || 
+                (p.barcode && p.barcode.includes(term))
+            );
+            renderProducts(filtered);
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const barcode = e.target.value.trim();
+                const product = products.find(p => p.barcode === barcode);
+                if (product) {
+                    addToCart(product.id);
+                    e.target.value = '';
+                    renderProducts(products);
+                }
+            }
+        });
+
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = cart.find(c => c.id === productId);
+            if (existing) {
+                if (existing.qty < product.stock) existing.qty++;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function updateQty(productId, delta) {
+            const item = cart.find(c => c.id === productId);
+            const product = products.find(p => p.id === productId);
+            if (!item) return;
+
+            item.qty += delta;
+            if (item.qty <= 0) {
+                cart = cart.filter(c => c.id !== productId);
+            } else if (item.qty > product.stock) {
+                item.qty = product.stock;
+            }
+            renderCart();
+        }
+
+        function removeFromCart(productId) {
+            cart = cart.filter(c => c.id !== productId);
+            renderCart();
+        }
+
+        function renderCart() {
+            const cartDiv = document.getElementById('cartItems');
+            if (cart.length === 0) {
+                cartDiv.innerHTML = '<div class="empty-cart"><div class="icon">🛒</div><p>ยังไม่มีสินค้าในตะกร้า</p></div>';
+            } else {
+                cartDiv.innerHTML = cart.map(item => `
+                    <div class="cart-item">
+                        <div class="cart-item-info">
+                            <div class="cart-item-name">${item.name}</div>
+                            <div class="cart-item-price">฿${parseFloat(item.price).toFixed(2)}</div>
+                        </div>
+                        <div class="cart-item-qty">
+                            <button class="minus" onclick="updateQty(${item.id}, -1)">-</button>
+                            <span>${item.qty}</span>
+                            <button class="plus" onclick="updateQty(${item.id}, 1)">+</button>
+                        </div>
+                        <div class="cart-item-total">฿${(item.price * item.qty).toFixed(2)}</div>
+                        <span class="cart-item-remove" onclick="removeFromCart(${item.id})">×</span>
+                    </div>
+                `).join('');
+            }
+
+            const totalItems = cart.reduce((sum, i) => sum + i.qty, 0);
+            const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('totalAmount').textContent = `฿${totalAmount.toFixed(2)}`;
+            document.getElementById('checkoutBtn').disabled = cart.length === 0;
+        }
+
+        function clearCart() {
+            if (cart.length > 0 && confirm('ล้างตะกร้าทั้งหมด?')) {
+                cart = [];
+                renderCart();
+            }
+        }
+
+        async function checkout() {
+            if (cart.length === 0) return;
+
+            const items = cart.map(c => ({ product_id: c.id, quantity: c.qty, price: c.price }));
+            const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+            const result = await fetchAPI('/sales', {
+                method: 'POST',
+                body: JSON.stringify({ items, total_amount: total })
+            });
+
+            if (result.status === 'success') {
+                showReceipt(result.data);
+                cart = [];
+                renderCart();
+                loadProducts();
+            } else {
+                alert(result.message);
+            }
+        }
+
+        function showReceipt(sale) {
+            const now = new Date();
+            document.getElementById('receipt').innerHTML = `
+                <div class="receipt-header">
+                    <strong>POS System</strong><br>
+                    ${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}
+                </div>
+                <div>เลขที่: #${sale.id}</div>
+                <div>พนักงาน: ${user.display_name || user.username}</div>
+                <div style="border-top: 1px dashed #999; margin: 10px 0; padding-top: 10px;">
+                    ${sale.items.map(i => `<div>${i.name} x${i.quantity} = ฿${(i.price * i.quantity).toFixed(2)}</div>`).join('')}
+                </div>
+                <div style="border-top: 1px dashed #999; padding-top: 10px; font-weight: bold;">
+                    รวมทั้งสิ้น: ฿${parseFloat(sale.total).toFixed(2)}
+                </div>
+            `;
+            document.getElementById('successModal').style.display = 'flex';
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('successModal').style.display = 'none';
+        }
+
+        function startScanner() {
+            document.getElementById('scannerModal').style.display = 'flex';
+            document.getElementById('manualBarcode').value = '';
+            
+            Quagga.init({
+                inputStream: { type: 'LiveStream', target: document.querySelector('#scanner-container'), constraints: { facingMode: 'environment' } },
+                decoder: { readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader', 'upc_reader', 'upc_e_reader'] }
+            }, (err) => {
+                if (err) { console.error(err); return; }
+                Quagga.start();
+            });
+
+            Quagga.onDetected((result) => {
+                const code = result.codeResult.code;
+                stopScanner();
+                handleScannedBarcode(code);
+            });
+        }
+
+        function stopScanner() {
+            try { Quagga.stop(); } catch(e) {}
+            document.getElementById('scannerModal').style.display = 'none';
+        }
+
+        function useManualBarcode() {
+            const code = document.getElementById('manualBarcode').value.trim();
+            if (code) { stopScanner(); handleScannedBarcode(code); }
+        }
+
+        function handleScannedBarcode(code) {
+            const product = products.find(p => p.barcode === code);
+            if (product) {
+                addToCart(product.id);
+            } else {
+                alert(`ไม่พบสินค้าบาร์โค้ด: ${code}`);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('pos_token');
+            localStorage.removeItem('pos_user');
+            window.location.href = 'index.html';
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>

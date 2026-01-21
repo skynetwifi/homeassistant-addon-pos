@@ -1,0 +1,24 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start POS System
+# ==============================================================================
+
+bashio::log.info "Starting POS System..."
+
+# Get database configuration from add-on options
+export DB_HOST=$(bashio::config 'db_host')
+export DB_PORT=$(bashio::config 'db_port')
+export DB_NAME=$(bashio::config 'db_name')
+export DB_USER=$(bashio::config 'db_user')
+export DB_PASSWORD=$(bashio::config 'db_password')
+
+# Get ingress configuration
+export INGRESS_PATH="$(bashio::addon.ingress_entry)"
+export PORT=8099
+
+bashio::log.info "Database: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
+bashio::log.info "Ingress path: ${INGRESS_PATH}"
+
+# Start the Node.js server
+cd /app
+exec node server.js
