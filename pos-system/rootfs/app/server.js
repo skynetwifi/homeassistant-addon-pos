@@ -15,8 +15,8 @@ app.use(express.urlencoded({ extended: true }));
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'core-mariadb',
   port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'code9',
-  password: process.env.DB_PASSWORD || 'cdma1987',
+  user: process.env.DB_USER || 'pos_user',
+  password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_NAME || 'pos_db',
   waitForConnections: true,
   connectionLimit: 10,

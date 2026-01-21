@@ -1,6 +1,6 @@
 {
   "name": "POS System",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "slug": "pos_system",
   "description": "Point of Sale System with Barcode Scanner support",
   "url": "https://github.com/skynetwifi/homeassistant-addon-pos",
@@ -18,8 +18,8 @@
     "db_host": "core-mariadb",
     "db_port": 3306,
     "db_name": "pos_db",
-    "db_user": "code9",
-    "db_password": "cdma1987",
+    "db_user": "pos_user",
+    "db_password": "password",
     "admin_user": "admin",
     "admin_password": "admin123"
   },

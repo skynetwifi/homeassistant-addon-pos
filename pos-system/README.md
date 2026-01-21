@@ -27,8 +27,8 @@
 
 ```sql
 CREATE DATABASE pos_db;
-CREATE USER 'code9'@'%' IDENTIFIED BY 'cdma1987';
-GRANT ALL PRIVILEGES ON pos_db.* TO 'code9'@'%';
+CREATE USER 'pos_user'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON pos_db.* TO 'pos_user'@'%';
 FLUSH PRIVILEGES;
 ```
 
@@ -44,5 +44,5 @@ FLUSH PRIVILEGES;
 | db_host | MariaDB Host | core-mariadb.local.hass.io |
 | db_port | MariaDB Port | 3306 |
 | db_name | Database Name | pos_db |
-| db_user | Database User | code9 |
-| db_password | Database Password | cdma1987 |
+| db_user | Database User | pos_user |
+| db_password | Database Password | password |

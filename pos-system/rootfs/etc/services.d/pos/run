@@ -27,8 +27,8 @@ get_json_value() {
 DB_HOST=$(get_json_value db_host core-mariadb)
 DB_PORT=$(get_json_value db_port 3306)
 DB_NAME=$(get_json_value db_name pos_db)
-DB_USER=$(get_json_value db_user code9)
-DB_PASSWORD=$(get_json_value db_password cdma1987)
+DB_USER=$(get_json_value db_user pos_user)
+DB_PASSWORD=$(get_json_value db_password password)
 ADMIN_USER=$(get_json_value admin_user admin)
 ADMIN_PASSWORD=$(get_json_value admin_password admin123)
 INGRESS_PATH=""
