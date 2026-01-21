@@ -19,14 +19,18 @@
     "db_port": 3306,
     "db_name": "pos_db",
     "db_user": "code9",
-    "db_password": "cdma1987"
+    "db_password": "cdma1987",
+    "admin_user": "admin",
+    "admin_password": "admin123"
   },
   "schema": {
     "db_host": "str",
     "db_port": "int",
     "db_name": "str",
     "db_user": "str",
-    "db_password": "password"
+    "db_password": "password",
+    "admin_user": "str",
+    "admin_password": "password"
   },
   "ports": {
     "8099/tcp": null

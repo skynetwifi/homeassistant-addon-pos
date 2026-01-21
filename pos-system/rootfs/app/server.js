@@ -29,6 +29,39 @@ console.log(`  Port: ${process.env.DB_PORT || 3306}`);
 console.log(`  Database: ${process.env.DB_NAME || 'pos_db'}`);
 console.log(`  Ingress Path: ${INGRESS_PATH}`);
 
+// Ensure admin user exists on startup
+async function ensureAdminUser() {
+  try {
+    const adminUser = process.env.ADMIN_USER || 'admin';
+    const adminPass = process.env.ADMIN_PASSWORD || 'admin123';
+
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query('SELECT * FROM users WHERE username = ?', [adminUser]);
+
+    if (rows.length === 0) {
+      const password_hash = hashPassword(adminPass);
+      await connection.query(
+        `INSERT INTO users (username, password_hash, display_name, role, is_active, created_at)
+         VALUES (?, ?, ?, 'admin', 1, NOW())`,
+        [adminUser, password_hash, 'Administrator']
+      );
+      console.log('[POS] Created admin user from add-on configuration');
+    } else {
+      // If exists, optionally update password if different
+      const user = rows[0];
+      const currentHash = user.password_hash || '';
+      const newHash = hashPassword(adminPass);
+      if (currentHash !== newHash) {
+        await connection.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
+        console.log('[POS] Admin password updated from add-on configuration');
+      }
+    }
+    connection.release();
+  } catch (err) {
+    console.error('[POS] ensureAdminUser error:', err);
+  }
+}
+
 // Session Store
 const sessions = new Map();
 
@@ -310,7 +343,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[POS] Server running on http://0.0.0.0:${PORT}`);
-  console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+async function init() {
+  await ensureAdminUser();
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[POS] Server running on http://0.0.0.0:${PORT}`);
+    console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
+
+init();

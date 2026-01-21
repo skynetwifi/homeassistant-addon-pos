@@ -1,24 +1,37 @@
-#!/usr/bin/with-contenv bashio
-# ==============================================================================
-# Start POS System
-# ==============================================================================
+#!/usr/bin/with-contenv bash
+set -e
 
-bashio::log.info "Starting POS System..."
+# Read add-on configuration
+. /etc/profile
 
-# Get database configuration from add-on options
-export DB_HOST=$(bashio::config 'db_host')
-export DB_PORT=$(bashio::config 'db_port')
-export DB_NAME=$(bashio::config 'db_name')
-export DB_USER=$(bashio::config 'db_user')
-export DB_PASSWORD=$(bashio::config 'db_password')
+# Use bashio if available to read options, otherwise fall back to env
+if command -v bashio >/dev/null 2>&1; then
+  DB_HOST=$(bashio::addon.option db_host)
+  DB_PORT=$(bashio::addon.option db_port)
+  DB_NAME=$(bashio::addon.option db_name)
+  DB_USER=$(bashio::addon.option db_user)
+  DB_PASSWORD=$(bashio::addon.option db_password)
+  ADMIN_USER=$(bashio::addon.option admin_user)
+  ADMIN_PASSWORD=$(bashio::addon.option admin_password)
+  INGRESS_PATH=$(bashio::addon.ingress_entry)
+else
+  DB_HOST=${DB_HOST:-core-mariadb}
+  DB_PORT=${DB_PORT:-3306}
+  DB_NAME=${DB_NAME:-pos_db}
+  DB_USER=${DB_USER:-code9}
+  DB_PASSWORD=${DB_PASSWORD:-cdma1987}
+  ADMIN_USER=${ADMIN_USER:-admin}
+  ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+  INGRESS_PATH=${INGRESS_PATH:-}
+fi
 
-# Get ingress configuration
-export INGRESS_PATH="$(bashio::addon.ingress_entry)"
-export PORT=8099
+export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD ADMIN_USER ADMIN_PASSWORD INGRESS_PATH
 
-bashio::log.info "Database: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
-bashio::log.info "Ingress path: ${INGRESS_PATH}"
+echo "[POS] Starting POS System..."
+echo "[POS] Database: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
+if [ -n "$INGRESS_PATH" ]; then
+  echo "[POS] Ingress path: ${INGRESS_PATH}"
+fi
 
-# Start the Node.js server
-cd /app
+cd /app || exit 1
 exec node server.js
