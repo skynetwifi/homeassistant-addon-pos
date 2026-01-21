@@ -20,7 +20,9 @@
 
 1. เพิ่ม Repository: `https://github.com/skynetwifi/homeassistant-addon-pos`
 2. ติดตั้ง POS System Add-on
-3. ตั้งค่าการเชื่อมต่อ MariaDB
+3. ไปที่แท็บ **Configuration** เพื่อตั้งค่า:
+   - การเชื่อมต่อ MariaDB (Host, User, Password)
+   - กำหนดข้อมูลเข้าสู่ระบบของผู้ดูแลระบบ (**Admin User** และ **Password**)
 4. เริ่มต้น Add-on
 
 ## Database Setup
@@ -46,3 +48,5 @@ FLUSH PRIVILEGES;
 | db_name | Database Name | pos_db |
 | db_user | Database User | pos_user |
 | db_password | Database Password | password |
+| admin_user | Admin Username (for login) | admin |
+| admin_password | Admin Password | admin123 |
