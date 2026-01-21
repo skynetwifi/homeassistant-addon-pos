@@ -8,13 +8,13 @@ get_json_value() {
   local key="$1" default="$2"
   if [ -f /data/options.json ]; then
     local val
-    val=$(sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^"]*\)\".*/\1/p" /data/options.json || true)
+    val=$(sed -n 's/.*"'"${key}"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' /data/options.json || true)
     if [ -n "${val}" ]; then
       printf '%s' "${val}"
       return 0
     fi
     # try numeric
-    val=$(sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p" /data/options.json || true)
+    val=$(sed -n 's/.*"'"${key}"'"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' /data/options.json || true)
     if [ -n "${val}" ]; then
       printf '%s' "${val}"
       return 0
