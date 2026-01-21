@@ -1,0 +1,35 @@
+# ตัวอย่าง Configuration สำหรับ Lovelace Dashboard
+# คุณสามารถนำโค้ดนี้ไปวางใน "Raw Configuration Editor" ของ Dashboard ใหม่ได้เลย
+
+title: POS System
+icon: mdi:cash-register
+views:
+  # หน้า Login หลัก (สำหรับพนักงาน Login เอง)
+  - title: POS Terminal
+    path: pos-main
+    panel: true
+    icon: mdi:monitor-dashboard
+    cards:
+      - type: iframe
+        url: http://192.168.99.9:8099/
+        aspect_ratio: 100%
+
+  # หน้า Cashier โดยตรง (ถ้า Login ค้างไว้แล้ว)
+  - title: Cashier View
+    path: pos-cashier
+    panel: true
+    icon: mdi:cart-outline
+    cards:
+      - type: iframe
+        url: http://192.168.99.9:8099/cashier.html
+        aspect_ratio: 100%
+
+  # หน้า Admin โดยตรง
+  - title: Admin View
+    path: pos-admin
+    panel: true
+    icon: mdi:cog
+    cards:
+      - type: iframe
+        url: http://192.168.99.9:8099/admin.html
+        aspect_ratio: 100%
