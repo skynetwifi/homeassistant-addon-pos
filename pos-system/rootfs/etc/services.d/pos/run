@@ -2,7 +2,6 @@
 set -euo pipefail
 
 # Read add-on configuration (prefer bashio, otherwise try /data/options.json, then env defaults)
-. /etc/profile || true
 
 get_json_value() {
   # args: key default
