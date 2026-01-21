@@ -29,8 +29,8 @@
 
 ```sql
 CREATE DATABASE pos_db;
-CREATE USER 'pos_user'@'%' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON pos_db.* TO 'pos_user'@'%';
+CREATE USER 'pos_user' 'password';
+GRANT ALL PRIVILEGES ON pos_db.* TO 'pos_user';
 FLUSH PRIVILEGES;
 ```
 
