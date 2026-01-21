@@ -1,6 +1,6 @@
 {
   "name": "POS System",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "slug": "pos_system",
   "description": "Point of Sale System with Barcode Scanner support",
   "url": "https://github.com/skynetwifi/homeassistant-addon-pos",
