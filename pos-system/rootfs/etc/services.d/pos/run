@@ -1,10 +1,29 @@
 #!/usr/bin/with-contenv bash
-set -e
+set -euo pipefail
 
-# Read add-on configuration
-. /etc/profile
+# Read add-on configuration (prefer bashio, otherwise try /data/options.json, then env defaults)
+. /etc/profile || true
 
-# Use bashio if available to read options, otherwise fall back to env
+get_json_value() {
+  # args: key default
+  local key="$1" default="$2"
+  if [ -f /data/options.json ]; then
+    local val
+    val=$(sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^"]*\)\".*/\1/p" /data/options.json || true)
+    if [ -n "${val}" ]; then
+      printf '%s' "${val}"
+      return 0
+    fi
+    # try numeric
+    val=$(sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p" /data/options.json || true)
+    if [ -n "${val}" ]; then
+      printf '%s' "${val}"
+      return 0
+    fi
+  fi
+  printf '%s' "${default}"
+}
+
 if command -v bashio >/dev/null 2>&1; then
   DB_HOST=$(bashio::addon.option db_host)
   DB_PORT=$(bashio::addon.option db_port)
@@ -15,21 +34,21 @@ if command -v bashio >/dev/null 2>&1; then
   ADMIN_PASSWORD=$(bashio::addon.option admin_password)
   INGRESS_PATH=$(bashio::addon.ingress_entry)
 else
-  DB_HOST=${DB_HOST:-core-mariadb}
-  DB_PORT=${DB_PORT:-3306}
-  DB_NAME=${DB_NAME:-pos_db}
-  DB_USER=${DB_USER:-code9}
-  DB_PASSWORD=${DB_PASSWORD:-cdma1987}
-  ADMIN_USER=${ADMIN_USER:-admin}
-  ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-  INGRESS_PATH=${INGRESS_PATH:-}
+  DB_HOST=$(get_json_value db_host core-mariadb)
+  DB_PORT=$(get_json_value db_port 3306)
+  DB_NAME=$(get_json_value db_name pos_db)
+  DB_USER=$(get_json_value db_user code9)
+  DB_PASSWORD=$(get_json_value db_password cdma1987)
+  ADMIN_USER=$(get_json_value admin_user admin)
+  ADMIN_PASSWORD=$(get_json_value admin_password admin123)
+  INGRESS_PATH=""
 fi
 
 export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD ADMIN_USER ADMIN_PASSWORD INGRESS_PATH
 
 echo "[POS] Starting POS System..."
 echo "[POS] Database: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
-if [ -n "$INGRESS_PATH" ]; then
+if [ -n "${INGRESS_PATH}" ]; then
   echo "[POS] Ingress path: ${INGRESS_PATH}"
 fi
 
