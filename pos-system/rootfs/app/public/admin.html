@@ -52,6 +52,10 @@
 <body>
     <nav class="navbar">
         <h1>🏪 POS Admin</h1>
+        <div style="display: flex; gap: 20px;">
+            <a href="#" onclick="switchView('products')" style="color: white; text-decoration: none; font-weight: bold;">📦 สินค้า</a>
+            <a href="#" onclick="switchView('users')" style="color: white; text-decoration: none; font-weight: bold;">👥 ผู้ใช้งาน</a>
+        </div>
         <div class="navbar-actions">
             <span id="userName"></span>
             <button onclick="window.location.href='cashier.html'">💵 หน้าขาย</button>
@@ -62,11 +66,14 @@
     <div class="container">
         <div class="stats-row" id="statsRow"></div>
 
-        <div class="card">
-            <div class="card-header">
-                <h2>📦 จัดการสินค้า</h2>
-                <button class="btn btn-primary" onclick="openAddModal()">+ เพิ่มสินค้า</button>
-            </div>
+        <!-- Products View -->
+        <div id="products-view">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📦 จัดการสินค้า</h2>
+                    <button class="btn btn-primary" onclick="openAddModal()">+ เพิ่มสินค้า</button>
+                </div>
+                <!-- ... existing product table ... -->
             <div class="card-body">
                 <div class="barcode-input-group">
                     <input type="text" id="searchBarcode" placeholder="🔍 ค้นหาด้วยบาร์โค้ด...">
@@ -90,6 +97,75 @@
                     </table>
                 </div>
             </div>
+        </div>
+        </div> <!-- End products-view -->
+
+        <!-- Users View -->
+        <div id="users-view" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2>👥 จัดการผู้ใช้งาน</h2>
+                    <button class="btn btn-primary" onclick="openUserModal()">+ เพิ่มผู้ใช้</button>
+                </div>
+                <div class="card-body">
+                    <div style="overflow-x: auto;">
+                        <table id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>ชื่อที่แสดง</th>
+                                    <th>บทบาท</th>
+                                    <th>สถานะ</th>
+                                    <th>สร้างเมื่อ</th>
+                                    <th>จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- End Container -->
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="userModalTitle">เพิ่มผู้ใช้งาน</h3>
+                <span class="close" onclick="closeUserModal()">&times;</span>
+            </div>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="userUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>Password (เว้นว่างถ้าไม่เปลี่ยน)</label>
+                    <input type="password" id="userPassword">
+                </div>
+                <div class="form-group">
+                    <label>ชื่อที่แสดง</label>
+                    <input type="text" id="userDisplayName" required>
+                </div>
+                <div class="form-group">
+                    <label>บทบาท</label>
+                    <select id="userRole" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="cashier">Cashier</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>สถานะ</label>
+                    <select id="userStatus" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="1">ใช้งาน</option>
+                        <option value="0">ระงับการใช้งาน</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">บันทึก</button>
+            </form>
         </div>
     </div>
 
@@ -339,6 +415,113 @@
             localStorage.removeItem('pos_user');
             window.location.href = 'index.html';
         }
+
+        // ================== USER MANAGEMENT ==================
+        function switchView(view) {
+            if (view === 'products') {
+                 document.getElementById('products-view').style.display = 'block';
+                 document.getElementById('users-view').style.display = 'none';
+                 loadProducts();
+            } else {
+                 document.getElementById('products-view').style.display = 'none';
+                 document.getElementById('users-view').style.display = 'block';
+                 loadUsers();
+            }
+        }
+
+        let users = [];
+        async function loadUsers() {
+            const result = await fetchAPI('/users');
+            if (result.status === 'success') {
+                users = result.data;
+                renderUsers(users);
+            }
+        }
+
+        function renderUsers(list) {
+            const currentUser = JSON.parse(localStorage.getItem('pos_user'));
+            const tbody = document.querySelector('#usersTable tbody');
+            tbody.innerHTML = list.map(u => `
+                <tr>
+                    <td>${u.username}</td>
+                    <td>${u.display_name}</td>
+                    <td>${u.role}</td>
+                    <td>
+                        <span style="color: ${u.is_active ? 'green' : 'red'}">
+                            ${u.is_active ? '✅ ใช้งาน' : '❌ ระงับ'}
+                        </span>
+                    </td>
+                    <td>${new Date(u.created_at).toLocaleDateString('th-TH')}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" onclick="editUser(${u.id})">✏️</button>
+                        ${u.id !== currentUser.id ? 
+                        `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">🗑️</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openUserModal() {
+            document.getElementById('userModalTitle').textContent = 'เพิ่มผู้ใช้งาน';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('userUsername').disabled = false;
+            document.getElementById('userStatus').value = '1';
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        function editUser(id) {
+            const u = users.find(x => x.id === id);
+            if (!u) return;
+            document.getElementById('userModalTitle').textContent = 'แก้ไขผู้ใช้งาน';
+            document.getElementById('userId').value = u.id;
+            document.getElementById('userUsername').value = u.username;
+            document.getElementById('userUsername').disabled = true;
+            document.getElementById('userDisplayName').value = u.display_name;
+            document.getElementById('userRole').value = u.role;
+            document.getElementById('userStatus').value = u.is_active ? '1' : '0';
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('ต้องการลบผู้ใช้งานนี้ถาวร?')) return;
+            const result = await fetchAPI(`/users/${id}`, { method: 'DELETE' });
+             if (result.status === 'success') {
+                loadUsers();
+            } else {
+                alert(result.message);
+            }
+        }
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('userId').value;
+            const data = {
+                username: document.getElementById('userUsername').value,
+                password: document.getElementById('userPassword').value,
+                display_name: document.getElementById('userDisplayName').value,
+                role: document.getElementById('userRole').value,
+                is_active: document.getElementById('userStatus').value === '1'
+            };
+
+            if (id && !data.password) delete data.password;
+
+            const url = id ? `/users/${id}` : '/users';
+            const method = id ? 'PUT' : 'POST';
+
+            const result = await fetchAPI(url, { method, body: JSON.stringify(data) });
+            if (result.status === 'success') {
+                closeUserModal();
+                loadUsers();
+            } else {
+                alert(result.message);
+            }
+        });
 
         loadDashboard();
         loadProducts();

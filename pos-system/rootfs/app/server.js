@@ -161,6 +161,94 @@ app.get('/api/me', requireAuth, (req, res) => {
   res.json({ status: 'success', data: req.user });
 });
 
+// ================== USER MANAGEMENT ENDPOINTS ==================
+
+app.get('/api/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [users] = await connection.query('SELECT id, username, display_name, role, is_active, created_at FROM users ORDER BY created_at DESC');
+    connection.release();
+    res.json({ status: 'success', data: users });
+  } catch (error) {
+    console.error('[POS] Get Users Error:', error);
+    res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+});
+
+app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { username, password, display_name, role } = req.body;
+    if (!username || !password || !role) {
+      return res.status(400).json({ status: 'error', message: 'Username, password and role are required' });
+    }
+
+    const connection = await pool.getConnection();
+    const [existing] = await connection.query('SELECT id FROM users WHERE username = ?', [username]);
+    if (existing.length > 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Username already exists' });
+    }
+
+    const password_hash = hashPassword(password);
+    await connection.query(
+      'INSERT INTO users (username, password_hash, display_name, role, is_active, created_at) VALUES (?, ?, ?, ?, 1, NOW())',
+      [username, password_hash, display_name || username, role]
+    );
+    connection.release();
+    res.json({ status: 'success', message: 'User created successfully' });
+  } catch (error) {
+    console.error('[POS] Create User Error:', error);
+    res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+});
+
+app.put('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { password, display_name, role, is_active } = req.body;
+    const userId = req.params.id;
+
+    // Prevent deactivating own account
+    if (is_active !== undefined && parseInt(userId) === req.user.id && (is_active === 0 || is_active === false || is_active === '0')) {
+         return res.status(400).json({ status: 'error', message: 'Cannot deactivate your own account' });
+    }
+
+    const connection = await pool.getConnection();
+    let query = 'UPDATE users SET display_name = ?, role = ?, is_active = ?';
+    let params = [display_name, role, is_active ? 1 : 0];
+
+    if (password) {
+      query += ', password_hash = ?';
+      params.push(hashPassword(password));
+    }
+
+    query += ' WHERE id = ?';
+    params.push(userId);
+
+    await connection.query(query, params);
+    connection.release();
+    res.json({ status: 'success', message: 'User updated successfully' });
+  } catch (error) {
+    console.error('[POS] Update User Error:', error);
+    res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+});
+
+app.delete('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
+   try {
+    const userId = req.params.id;
+    if (parseInt(userId) === req.user.id) {
+        return res.status(400).json({ status: 'error', message: 'Cannot delete your own account' });
+    }
+    const connection = await pool.getConnection();
+    await connection.query('DELETE FROM users WHERE id = ?', [userId]);
+    connection.release();
+    res.json({ status: 'success', message: 'User deleted permanently' });
+   } catch (error) {
+    console.error('[POS] Delete User Error:', error);
+    res.status(500).json({ status: 'error', message: 'Server error' });
+   }
+});
+
 // ================== PRODUCT ENDPOINTS ==================
 
 app.get('/api/products', requireAuth, async (req, res) => {
