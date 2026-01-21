@@ -37,6 +37,5 @@
   "map": ["share:rw"],
   "environment": {
     "NODE_ENV": "production"
-  },
-  "image": "ghcr.io/skynetwifi/{arch}-addon-pos-system"
+  }
 }
