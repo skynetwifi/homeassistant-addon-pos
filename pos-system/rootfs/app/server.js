@@ -132,6 +132,17 @@ async function ensureTables() {
       }
     }
 
+    // Migrations: Add status to sales if missing
+    try {
+      await connection.query('SELECT status FROM sales LIMIT 1');
+    } catch (e) {
+      if (e.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[POS] Migrating sales table: adding status');
+        await connection.query("ALTER TABLE sales ADD COLUMN status VARCHAR(20) DEFAULT 'completed' AFTER payment_method");
+        await connection.query("UPDATE sales SET status = 'completed' WHERE status IS NULL");
+      }
+    }
+
     // Migrations: Add user_id to inventory_history if missing
     try {
       await connection.query('SELECT user_id FROM inventory_history LIMIT 1');
