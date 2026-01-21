@@ -50,3 +50,23 @@ FLUSH PRIVILEGES;
 | db_password | Database Password | password |
 | admin_user | Admin Username (for login) | admin |
 | admin_password | Admin Password | admin123 |
+
+## How to Show on Lovelace Dashboard
+
+You can add the POS interface to your Home Assistant dashboard using the **Webpage Card**.
+
+### Method 1: Using Direct Port (Recommended for Tablets)
+1. Go to Add-on **Configuration** -> **Network**.
+2. Set port `8099` (or your choice).
+3. Restart the Add-on.
+4. In Lovelace, add a **Webpage Card**.
+5. Set **URL** to: `http://<YOUR_HA_IP>:8099/cashier.html`
+   - Example: `http://192.168.1.50:8099/cashier.html`
+
+### Method 2: Using Ingress Path
+1. Open the POS Add-on Web UI.
+2. Copy the URL path (everything after the domain).
+   - Example: `/api/hassio_ingress/a6f60c51_pos_system/`
+3. In Lovelace, add a **Webpage Card**.
+4. Set **URL** to the path you copied.
+
