@@ -177,7 +177,7 @@
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const barcode = e.target.value.trim();
-                const product = products.find(p => p.barcode === barcode);
+                const product = products.find(p => String(p.barcode) === String(barcode));
                 if (product) {
                     addToCart(product.id);
                     e.target.value = '';
@@ -349,7 +349,7 @@
         }
 
         function handleScannedBarcode(code) {
-            const product = products.find(p => p.barcode === code);
+            const product = products.find(p => String(p.barcode) === String(code));
             if (product) {
                 addToCart(product.id);
             } else {

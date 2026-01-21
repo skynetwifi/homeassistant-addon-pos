@@ -361,9 +361,12 @@
         });
 
         function searchProduct() {
-            const barcode = document.getElementById('searchBarcode').value.trim();
-            if (!barcode) { renderProducts(products); return; }
-            const filtered = products.filter(p => p.barcode && p.barcode.includes(barcode));
+            const term = document.getElementById('searchBarcode').value.trim().toLowerCase();
+            if (!term) { renderProducts(products); return; }
+            const filtered = products.filter(p => 
+                (p.barcode && String(p.barcode).toLowerCase().includes(term)) || 
+                (p.name && p.name.toLowerCase().includes(term))
+            );
             renderProducts(filtered);
         }
 
