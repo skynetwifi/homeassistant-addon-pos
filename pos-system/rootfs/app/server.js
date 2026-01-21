@@ -33,6 +33,80 @@ console.log(`  Ingress Path: ${INGRESS_PATH}`);
 async function ensureTables() {
   try {
     const connection = await pool.getConnection();
+
+    // Users table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        display_name VARCHAR(100),
+        role VARCHAR(20) DEFAULT 'cashier',
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Products table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        sku VARCHAR(50),
+        barcode VARCHAR(50),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        cost_price DECIMAL(10,2) DEFAULT 0,
+        profit_margin DECIMAL(10,2) DEFAULT 0,
+        quantity INT DEFAULT 0,
+        min_quantity INT DEFAULT 10,
+        category VARCHAR(100) DEFAULT 'General',
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_barcode (barcode),
+        INDEX idx_name (name)
+      )
+    `);
+
+    // Sales table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS sales (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        total_amount DECIMAL(10,2) NOT NULL,
+        payment_method VARCHAR(50) DEFAULT 'cash',
+        status VARCHAR(20) DEFAULT 'completed',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_created_at (created_at)
+      )
+    `);
+
+    // Sale Items table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS sale_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        sale_id INT NOT NULL,
+        product_id INT NOT NULL,
+        quantity INT NOT NULL,
+        unit_price DECIMAL(10,2) NOT NULL,
+        subtotal DECIMAL(10,2) NOT NULL,
+        INDEX idx_sale_id (sale_id)
+      )
+    `);
+
+    // Inventory History table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS inventory_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NOT NULL,
+        change_type VARCHAR(50) NOT NULL,
+        quantity_change INT NOT NULL,
+        reason VARCHAR(255),
+        user_id INT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_product_id (product_id)
+      )
+    `);
     
     // Sessions table
     await connection.query(`
@@ -45,6 +119,28 @@ async function ensureTables() {
         INDEX idx_expires (expires_at)
       )
     `);
+
+    // Migrations: Add user_id to sales if missing
+    try {
+      await connection.query('SELECT user_id FROM sales LIMIT 1');
+    } catch (e) {
+      if (e.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[POS] Migrating sales table: adding user_id');
+        await connection.query('ALTER TABLE sales ADD COLUMN user_id INT AFTER id');
+        // Update old sales to likely default to admin (id 1) or NULL
+        await connection.query('UPDATE sales SET user_id = 1 WHERE user_id IS NULL');
+      }
+    }
+
+    // Migrations: Add user_id to inventory_history if missing
+    try {
+      await connection.query('SELECT user_id FROM inventory_history LIMIT 1');
+    } catch (e) {
+      if (e.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[POS] Migrating inventory_history table: adding user_id');
+        await connection.query('ALTER TABLE inventory_history ADD COLUMN user_id INT AFTER reason');
+      }
+    }
     
     console.log('[POS] Database tables verified');
     connection.release();
