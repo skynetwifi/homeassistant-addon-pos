@@ -24,7 +24,12 @@ get_json_value() {
   printf '%s' "${default}"
 }
 
-if command -v bashio >/dev/null 2>&1; then
+if [ -f /usr/bin/bashio ]; then
+  # Source bashio helper if present (some supervisor images provide it)
+  . /usr/bin/bashio || true
+fi
+
+if type bashio::addon.option >/dev/null 2>&1; then
   DB_HOST=$(bashio::addon.option db_host)
   DB_PORT=$(bashio::addon.option db_port)
   DB_NAME=$(bashio::addon.option db_name)
