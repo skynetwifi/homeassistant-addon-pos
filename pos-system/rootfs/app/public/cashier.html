@@ -150,7 +150,7 @@
         async function loadProducts() {
             const result = await fetchAPI('/products');
             if (result.status === 'success') {
-                products = result.data.filter(p => p.stock > 0);
+                products = result.data.filter(p => p.quantity > 0);
                 renderProducts(products);
             }
         }
@@ -160,7 +160,7 @@
                 <div class="product-card" onclick="addToCart(${p.id})">
                     <div class="name" title="${p.name}">${p.name}</div>
                     <div class="price">฿${parseFloat(p.price).toFixed(2)}</div>
-                    <div class="stock">คงเหลือ: ${p.stock}</div>
+                    <div class="stock">คงเหลือ: ${p.quantity}</div>
                 </div>
             `).join('');
         }
@@ -192,7 +192,7 @@
 
             const existing = cart.find(c => c.id === productId);
             if (existing) {
-                if (existing.qty < product.stock) existing.qty++;
+                if (existing.qty < product.quantity) existing.qty++;
             } else {
                 cart.push({ ...product, qty: 1 });
             }
@@ -207,8 +207,8 @@
             item.qty += delta;
             if (item.qty <= 0) {
                 cart = cart.filter(c => c.id !== productId);
-            } else if (item.qty > product.stock) {
-                item.qty = product.stock;
+            } else if (item.qty > product.quantity) {
+                item.qty = product.quantity;
             }
             renderCart();
         }
