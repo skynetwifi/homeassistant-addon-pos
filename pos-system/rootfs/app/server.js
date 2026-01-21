@@ -152,6 +152,28 @@ async function ensureTables() {
         await connection.query('ALTER TABLE inventory_history ADD COLUMN user_id INT AFTER reason');
       }
     }
+
+    // Migrations: Add subtotal to sale_items if missing
+    try {
+      await connection.query('SELECT subtotal FROM sale_items LIMIT 1');
+    } catch (e) {
+      if (e.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[POS] Migrating sale_items table: adding subtotal');
+        await connection.query('ALTER TABLE sale_items ADD COLUMN subtotal DECIMAL(10,2) NOT NULL DEFAULT 0');
+        await connection.query('UPDATE sale_items SET subtotal = quantity * unit_price WHERE subtotal = 0');
+      }
+    }
+
+
+    // Migrations: Add user_id to inventory_history if missing
+    try {
+      await connection.query('SELECT user_id FROM inventory_history LIMIT 1');
+    } catch (e) {
+      if (e.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[POS] Migrating inventory_history table: adding user_id');
+        await connection.query('ALTER TABLE inventory_history ADD COLUMN user_id INT AFTER reason');
+      }
+    }
     
     console.log('[POS] Database tables verified');
     connection.release();
