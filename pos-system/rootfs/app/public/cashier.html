@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cashier - POS System</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
@@ -298,28 +298,49 @@
             document.getElementById('successModal').style.display = 'none';
         }
 
+        let html5QrCode;
+
         function startScanner() {
             document.getElementById('scannerModal').style.display = 'flex';
             document.getElementById('manualBarcode').value = '';
             
-            Quagga.init({
-                inputStream: { type: 'LiveStream', target: document.querySelector('#scanner-container'), constraints: { facingMode: 'environment' } },
-                decoder: { readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader', 'upc_reader', 'upc_e_reader'] }
-            }, (err) => {
-                if (err) { console.error(err); return; }
-                Quagga.start();
-            });
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("scanner-container");
+            }
 
-            Quagga.onDetected((result) => {
-                const code = result.codeResult.code;
-                stopScanner();
-                handleScannedBarcode(code);
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0 
+            };
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                (decodedText, decodedResult) => {
+                    stopScanner();
+                    handleScannedBarcode(decodedText);
+                },
+                (errorMessage) => {
+                    // parse error, ignore
+                }
+            ).catch(err => {
+                console.error("Error starting scanner", err);
+                alert("Error starting camera: " + err);
             });
         }
 
         function stopScanner() {
-            try { Quagga.stop(); } catch(e) {}
-            document.getElementById('scannerModal').style.display = 'none';
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scannerModal').style.display = 'none';
+                }).catch(err => {
+                    console.log("Error stopping scanner", err);
+                    document.getElementById('scannerModal').style.display = 'none';
+                });
+            } else {
+                document.getElementById('scannerModal').style.display = 'none';
+            }
         }
 
         function useManualBarcode() {
