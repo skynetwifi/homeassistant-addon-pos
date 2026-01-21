@@ -254,10 +254,10 @@
             if (result.status === 'success') {
                 const d = result.data;
                 document.getElementById('statsRow').innerHTML = `
-                    <div class="stat-card"><h3>📦 สินค้าทั้งหมด</h3><div class="value">${d.totalProducts}</div></div>
-                    <div class="stat-card"><h3>⚠️ สินค้าใกล้หมด</h3><div class="value" style="color:#dc3545">${d.lowStockProducts}</div></div>
-                    <div class="stat-card"><h3>💰 ยอดขายวันนี้</h3><div class="value" style="color:#28a745">฿${parseFloat(d.todaySales || 0).toLocaleString()}</div></div>
-                    <div class="stat-card"><h3>🧾 รายการขายวันนี้</h3><div class="value">${d.todayTransactions}</div></div>
+                    <div class="stat-card"><h3>📦 สินค้าทั้งหมด</h3><div class="value">${d.total_products}</div></div>
+                    <div class="stat-card"><h3>⚠️ สินค้าใกล้หมด</h3><div class="value" style="color:#dc3545">${d.low_stock_count}</div></div>
+                    <div class="stat-card"><h3>💰 ยอดขายวันนี้</h3><div class="value" style="color:#28a745">฿${parseFloat(d.todays_sales || 0).toLocaleString()}</div></div>
+                    <div class="stat-card"><h3>🧾 รายการขายวันนี้</h3><div class="value">${d.todays_transactions}</div></div>
                 `;
             }
         }
