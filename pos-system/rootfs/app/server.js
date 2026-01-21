@@ -284,8 +284,12 @@ app.get('/api/products/barcode/:barcode', requireAuth, async (req, res) => {
 app.post('/api/products', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { sku, barcode, name, description, price, cost_price, quantity, min_quantity, category } = req.body;
-    if (!sku || !name || !price) {
-      return res.status(400).json({ status: 'error', message: 'SKU, name, and price required' });
+    
+    // Auto-generate SKU if missing (using barcode or timestamp)
+    const finalSku = sku || barcode || `SKU-${Date.now()}`;
+
+    if (!name || !price) {
+      return res.status(400).json({ status: 'error', message: 'Name and price required' });
     }
 
     const profit_margin = cost_price ? ((price - cost_price) / cost_price * 100).toFixed(2) : 0;
@@ -293,7 +297,7 @@ app.post('/api/products', requireAuth, requireAdmin, async (req, res) => {
     const [result] = await connection.query(
       `INSERT INTO products (sku, barcode, name, description, price, cost_price, profit_margin, quantity, min_quantity, category)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [sku, barcode, name, description, price, cost_price || 0, profit_margin, quantity || 0, min_quantity || 10, category]
+      [finalSku, barcode || '', name, description || '', price, cost_price || 0, profit_margin, quantity || 0, min_quantity || 10, category || 'General']
     );
     connection.release();
 
@@ -310,20 +314,40 @@ app.post('/api/products', requireAuth, requireAdmin, async (req, res) => {
 app.put('/api/products/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { sku, barcode, name, description, price, cost_price, quantity, min_quantity, category } = req.body;
-    const profit_margin = cost_price ? ((price - cost_price) / cost_price * 100).toFixed(2) : 0;
-
+    
+    // Fetch existing product to merge data
     const connection = await pool.getConnection();
+    const [rows] = await connection.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    
+    if (rows.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'Product not found' });
+    }
+    
+    const current = rows[0];
+    const newSku = sku !== undefined ? sku : current.sku;
+    const newBarcode = barcode !== undefined ? barcode : current.barcode;
+    const newName = name !== undefined ? name : current.name;
+    const newDesc = description !== undefined ? description : current.description;
+    const newPrice = price !== undefined ? price : current.price;
+    const newCost = cost_price !== undefined ? cost_price : current.cost_price;
+    const newQty = quantity !== undefined ? quantity : current.quantity;
+    const newMinQty = min_quantity !== undefined ? min_quantity : current.min_quantity;
+    const newCat = category !== undefined ? category : current.category;
+
+    const profit_margin = newCost ? ((newPrice - newCost) / newCost * 100).toFixed(2) : 0;
+
     await connection.query(
       `UPDATE products SET sku=?, barcode=?, name=?, description=?, price=?, cost_price=?, profit_margin=?,
        quantity=?, min_quantity=?, category=? WHERE id=?`,
-      [sku, barcode, name, description, price, cost_price || 0, profit_margin, quantity, min_quantity, category, req.params.id]
+      [newSku, newBarcode, newName, newDesc, newPrice, newCost, profit_margin, newQty, newMinQty, newCat, req.params.id]
     );
     connection.release();
 
     res.json({ status: 'success', message: 'Product updated' });
   } catch (error) {
     console.error('[POS] Error:', error);
-    res.status(500).json({ status: 'error', message: 'Server error' });
+    res.status(500).json({ status: 'error', message: 'Server error: ' + error.message });
   }
 });
 

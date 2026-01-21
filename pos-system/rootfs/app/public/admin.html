@@ -279,7 +279,7 @@
                     <td>฿${parseFloat(p.cost_price || 0).toFixed(2)}</td>
                     <td>${parseFloat(p.profit_margin || 0).toFixed(1)}%</td>
                     <td>฿${parseFloat(p.price).toFixed(2)}</td>
-                    <td style="color: ${p.stock < 10 ? 'red' : 'green'}">${p.stock}</td>
+                    <td style="color: ${p.quantity < 10 ? 'red' : 'green'}">${p.quantity}</td>
                     <td>
                         <button class="btn btn-warning btn-sm" onclick="editProduct(${p.id})">✏️</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">🗑️</button>
@@ -314,7 +314,7 @@
             document.getElementById('costPrice').value = p.cost_price || 0;
             document.getElementById('profitMargin').value = p.profit_margin || 0;
             document.getElementById('price').value = p.price;
-            document.getElementById('stock').value = p.stock;
+            document.getElementById('stock').value = p.quantity;
             document.getElementById('modalAlert').innerHTML = '';
             document.getElementById('productModal').style.display = 'flex';
         }
@@ -343,7 +343,7 @@
                 cost_price: parseFloat(document.getElementById('costPrice').value),
                 profit_margin: parseFloat(document.getElementById('profitMargin').value),
                 price: parseFloat(document.getElementById('price').value),
-                stock: parseInt(document.getElementById('stock').value)
+                quantity: parseInt(document.getElementById('stock').value)
             };
             
             const result = await fetchAPI(id ? `/products/${id}` : '/products', {
