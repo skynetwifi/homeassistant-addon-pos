@@ -309,17 +309,17 @@ async function requireAuth(req, res, next) {
     req.user = rows[0].data;
     next();
   } catch (err) {
-    console.error('Auth Error:', e
-      status: 'error', 
-      message: `Admin access required (Current role: ${req.user.role})` 
-   
-    return res.status(500).json({ status: 'error', message: 'Server error check auth' });
+    console.error("Auth Error:", err);
+    return res.status(500).json({ status: "error", message: "Server error check auth" });
   }
 }
 
 function requireAdmin(req, res, next) {
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return res.status(403).json({ 
+      status: 'error', 
+      message: `Admin access required (Current role: ${req.user.role})` 
+    });
   }
   next();
 }
