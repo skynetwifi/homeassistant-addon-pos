@@ -694,13 +694,38 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+const https = require('https');
+const fs = require('fs');
+
 async function init() {
   await ensureTables();
   await ensureAdminUser();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[POS] Server running on http://0.0.0.0:${PORT}`);
-    console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
+  
+  let useSsl = false;
+  const sslOptions = {};
+  
+  // Try to find SSL certs in standard HA location
+  try {
+    if (fs.existsSync('/ssl/fullchain.pem') && fs.existsSync('/ssl/privkey.pem')) {
+      sslOptions.cert = fs.readFileSync('/ssl/fullchain.pem');
+      sslOptions.key = fs.readFileSync('/ssl/privkey.pem');
+      useSsl = true;
+    }
+  } catch (e) {
+    console.log('[POS] Could not load SSL certs, falling back to HTTP');
+  }
+
+  if (useSsl) {
+    https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+      console.log(`[POS] Server running on https://0.0.0.0:${PORT}`);
+      console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } else {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[POS] Server running on http://0.0.0.0:${PORT}`);
+      console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  }
 }
 
 init();
