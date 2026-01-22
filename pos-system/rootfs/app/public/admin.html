@@ -205,10 +205,14 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>จำนวนในสต็อก</label>
-                    <input type="number" id="stock" value="0" required>
+                    <label>จำนวนในสต็อกปัจจุบัน</label>
+                    <input type="number" id="stock" value="0" readonly style="background-color: #e9ecef;">
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">บันทึก</button>
+                <div class="form-group" style="background: #e8f5e9; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
+                    <label style="color: #2e7d32; font-weight: bold;">+ เพิ่มจำนวนสต็อก (รับเข้าใหม่)</label>
+                    <input type="number" id="addStock" value="0" min="0" placeholder="ใส่จำนวนที่ต้องการเพิ่ม..." style="font-size: 1.2em; font-weight: bold;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">บันทึก</button>
             </form>
         </div>
     </div>
@@ -296,21 +300,26 @@
         }
 
         function openAddModal() {
-            document.getElementById('modalTitle').textContent = 'เพิ่มสินค้า';
-            document.getElementById('productForm').reset();
-            document.getElementById('productId').value = '';
-            document.getElementById('profitMargin').value = '30';
+            document.getElementById('stock').value = '0';
+            document.getElementById('addStock').value = '';
+            document.getElementById('barcode').readOnly = false; 
             document.getElementById('modalAlert').innerHTML = '';
             document.getElementById('productModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('barcode').focus(), 100);
         }
 
         function editProduct(id) {
             const p = products.find(x => x.id === id);
             if (!p) return;
-            document.getElementById('modalTitle').textContent = 'แก้ไขสินค้า';
+            document.getElementById('modalTitle').textContent = 'แก้ไขสินค้า / เพิ่มสต็อก';
             document.getElementById('productId').value = p.id;
             document.getElementById('barcode').value = p.barcode || '';
             document.getElementById('name').value = p.name;
+            document.getElementById('costPrice').value = p.cost_price || 0;
+            document.getElementById('profitMargin').value = p.profit_margin || 0;
+            document.getElementById('price').value = p.price;
+            document.getElementById('stock').value = p.quantity;
+            document.getElementById('addStock').value = ''
             document.getElementById('costPrice').value = p.cost_price || 0;
             document.getElementById('profitMargin').value = p.profit_margin || 0;
             document.getElementById('price').value = p.price;
@@ -334,16 +343,25 @@
             document.getElementById('productModal').style.display = 'none';
         }
 
+        document.getElementById('barcode').addEventListener('change', (e) => {
+            if(e.target.value) checkBarcodeExistence(e.target.value);
+        });
+
         document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('productId').value;
+            
+            const currentStock = parseInt(document.getElementById('stock').value) || 0;
+            const addStock = parseInt(document.getElementById('addStock').value) || 0;
+            const totalStock = currentStock + addStock;
+
             const data = {
                 barcode: document.getElementById('barcode').value,
                 name: document.getElementById('name').value,
                 cost_price: parseFloat(document.getElementById('costPrice').value),
                 profit_margin: parseFloat(document.getElementById('profitMargin').value),
                 price: parseFloat(document.getElementById('price').value),
-                quantity: parseInt(document.getElementById('stock').value)
+                quantity: totalStock
             };
             
             const result = await fetchAPI(id ? `/products/${id}` : '/products', {
@@ -428,9 +446,51 @@
             if (code) { stopScanner(); handleScannedBarcode(code); }
         }
 
+        async function checkBarcodeExistence(code) {
+            // Search in local products first
+            const p = products.find(x => x.barcode === code);
+            
+            if (p) {
+                // Product exists! Switch to Edit/Restock mode
+                document.getElementById('modalTitle').textContent = 'สินค้าเก่า (เพิ่มสต็อก)';
+                document.getElementById('productId').value = p.id;
+                document.getElementById('name').value = p.name;
+                document.getElementById('costPrice').value = p.cost_price;
+                document.getElementById('profitMargin').value = p.profit_margin;
+                document.getElementById('price').value = p.price;
+                document.getElementById('stock').value = p.quantity;
+                document.getElementById('addStock').value = '';
+                document.getElementById('addStock').focus();
+                
+                document.getElementById('modalAlert').innerHTML = `
+                    <div class="alert alert-info" style="margin: 10px 0; background: #cce5ff; color: #004085; border-color: #b8daff;">
+                        <strong>พบสินค้าเดิม!</strong> กรุณากรอกจำนวนที่ต้องการเพิ่มในช่องสีเขียว
+                    </div>`;
+            } else {
+                // New product - clear ID to ensure we create new
+                if (document.getElementById('productId').value) {
+                     // If we were previously editing something, clear it
+                     document.getElementById('productId').value = '';
+                     document.getElementById('name').value = '';
+                     document.getElementById('costPrice').value = '';
+                     document.getElementById('profitMargin').value = '30';
+                     document.getElementById('price').value = '';
+                     document.getElementById('stock').value = '0';
+                     document.getElementById('addStock').value = '';
+                }
+                
+                document.getElementById('modalAlert').innerHTML = `
+                    <div class="alert alert-success" style="margin: 10px 0;">
+                        <strong>สินค้าใหม่!</strong> กรอกรายละเอียดเพื่อสร้างสินค้า
+                    </div>`;
+                document.getElementById('name').focus();
+            }
+        }
+
         function handleScannedBarcode(code) {
             if (scannerTarget === 'form') {
                 document.getElementById('barcode').value = code;
+                checkBarcodeExistence(code);
             } else {
                 document.getElementById('searchBarcode').value = code;
                 searchProduct();
