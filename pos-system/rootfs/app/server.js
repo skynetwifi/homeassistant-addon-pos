@@ -258,10 +258,17 @@ async function ensureAdminUser() {
       );
       console.log('[POS] Created admin user from add-on configuration');
     } else {
-      // If exists, optionally update password if different
+      // If exists, ensure role is admin and update password if needed
       const user = rows[0];
       const currentHash = user.password_hash || '';
       const newHash = hashPassword(adminPass);
+
+      // Always ensure role is admin for the main admin user
+      if (user.role !== 'admin') {
+        await connection.query("UPDATE users SET role = 'admin' WHERE id = ?", [user.id]);
+        console.log('[POS] Admin role fixed for user');
+      }
+
       if (currentHash !== newHash) {
         await connection.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
         console.log('[POS] Admin password updated from add-on configuration');
@@ -302,7 +309,10 @@ async function requireAuth(req, res, next) {
     req.user = rows[0].data;
     next();
   } catch (err) {
-    console.error('Auth Error:', err);
+    console.error('Auth Error:', e
+      status: 'error', 
+      message: `Admin access required (Current role: ${req.user.role})` 
+   
     return res.status(500).json({ status: 'error', message: 'Server error check auth' });
   }
 }
