@@ -702,8 +702,9 @@ async function init() {
   await ensureTables();
   await ensureAdminUser();
   
-  if (process.env.INGRESS_PORT) {
+  if (process.env.INGRESS_PORT || process.env.HASSIO_TOKEN) {
     // Ingress always needs HTTP on standard port (8099)
+    // Sometimes INGRESS_PORT might not be set in dev, but if we are in HA, we should listen on PORT (8099) as HTTP
     http.createServer(app).listen(PORT, '0.0.0.0', () => {
       console.log(`[POS] Ingress/HTTP Server running on http://0.0.0.0:${PORT}`);
     });
@@ -726,7 +727,7 @@ async function init() {
     console.log('[POS] Could not load SSL certs, secure port not started', e);
   }
 
-  if (!process.env.INGRESS_PORT) {
+  if (!process.env.INGRESS_PORT && !process.env.HASSIO_TOKEN) {
      // Standalone development fallback
      app.listen(PORT, '0.0.0.0', () => {
       console.log(`[POS] Standalone Server running on http://0.0.0.0:${PORT}`);
