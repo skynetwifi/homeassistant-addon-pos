@@ -306,7 +306,16 @@ async function requireAuth(req, res, next) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized / Session Expired' });
     }
     
-    req.user = rows[0].data;
+    let userData = rows[0].data;
+    if (typeof userData === 'string') {
+        try {
+            userData = JSON.parse(userData);
+        } catch (e) {
+            console.error('Failed to parse user data:', e);
+            return res.status(500).json({ status: 'error', message: 'Session data error' });
+        }
+    }
+    req.user = userData;
     next();
   } catch (err) {
     console.error("Auth Error:", err);
