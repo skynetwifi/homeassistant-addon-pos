@@ -1,6 +1,6 @@
 {
   "name": "POS System",
-  "version": "2.0.21",
+  "version": "2.0.22",
   "slug": "pos_system",
   "description": "Point of Sale System with Barcode Scanner support",
   "url": "https://github.com/skynetwifi/homeassistant-addon-pos",
@@ -38,7 +38,7 @@
   "ports_description": {
     "8099/tcp": "Web interface"
   },
-  "map": ["share:rw"],
+  "map": ["share:rw", "ssl"],
   "environment": {
     "NODE_ENV": "production"
   }
