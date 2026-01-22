@@ -1,6 +1,6 @@
 {
   "name": "POS System",
-  "version": "2.0.22",
+  "version": "2.0.23",
   "slug": "pos_system",
   "description": "Point of Sale System with Barcode Scanner support",
   "url": "https://github.com/skynetwifi/homeassistant-addon-pos",
@@ -33,10 +33,12 @@
     "admin_password": "password"
   },
   "ports": {
-    "8099/tcp": null
+    "8099/tcp": null,
+    "8100/tcp": null
   },
   "ports_description": {
-    "8099/tcp": "Web interface"
+    "8099/tcp": "Ingress (Internal)",
+    "8100/tcp": "Secure HTTPS"
   },
   "map": ["share:rw", "ssl"],
   "environment": {

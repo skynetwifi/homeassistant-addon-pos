@@ -695,35 +695,41 @@ app.get('*', (req, res) => {
 });
 
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 
 async function init() {
   await ensureTables();
   await ensureAdminUser();
   
-  let useSsl = false;
-  const sslOptions = {};
-  
-  // Try to find SSL certs in standard HA location
-  try {
-    if (fs.existsSync('/ssl/fullchain.pem') && fs.existsSync('/ssl/privkey.pem')) {
-      sslOptions.cert = fs.readFileSync('/ssl/fullchain.pem');
-      sslOptions.key = fs.readFileSync('/ssl/privkey.pem');
-      useSsl = true;
-    }
-  } catch (e) {
-    console.log('[POS] Could not load SSL certs, falling back to HTTP');
+  if (process.env.INGRESS_PORT) {
+    // Ingress always needs HTTP on standard port (8099)
+    http.createServer(app).listen(PORT, '0.0.0.0', () => {
+      console.log(`[POS] Ingress/HTTP Server running on http://0.0.0.0:${PORT}`);
+    });
   }
 
-  if (useSsl) {
-    https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
-      console.log(`[POS] Server running on https://0.0.0.0:${PORT}`);
-      console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-  } else {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[POS] Server running on http://0.0.0.0:${PORT}`);
-      console.log(`[POS] Environment: ${process.env.NODE_ENV || 'development'}`);
+  // Try to find SSL certs in standard HA location for SECONDARY secure port (8100)
+  try {
+    if (fs.existsSync('/ssl/fullchain.pem') && fs.existsSync('/ssl/privkey.pem')) {
+      const sslOptions = {
+        cert: fs.readFileSync('/ssl/fullchain.pem'),
+        key: fs.readFileSync('/ssl/privkey.pem')
+      };
+      
+      const SECURE_PORT = 8100;
+      https.createServer(sslOptions, app).listen(SECURE_PORT, '0.0.0.0', () => {
+        console.log(`[POS] Secure Server running on https://0.0.0.0:${SECURE_PORT}`);
+      });
+    }
+  } catch (e) {
+    console.log('[POS] Could not load SSL certs, secure port not started', e);
+  }
+
+  if (!process.env.INGRESS_PORT) {
+     // Standalone development fallback
+     app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[POS] Standalone Server running on http://0.0.0.0:${PORT}`);
     });
   }
 }
