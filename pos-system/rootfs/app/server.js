@@ -333,8 +333,18 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Use INGRESS_PATH for static files middleware
+// If running under Ingress, static assets will be served relative to that path
+// If running standalone, INGRESS_PATH is empty string
+const staticMiddleware = express.static(path.join(__dirname, 'public'));
+if (INGRESS_PATH) {
+    app.use(INGRESS_PATH, staticMiddleware);
+    // Also serve on root as a fallback/for direct access
+    app.use(staticMiddleware);
+} else {
+    app.use(staticMiddleware);
+}
 
 // ================== AUTH ENDPOINTS ==================
 
